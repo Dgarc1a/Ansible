@@ -1,0 +1,16 @@
+- hosts: linux_server
+  become: true
+  tasks:
+  - name: Atualizar todos Pacotes Ubunto e Debian Instalados 
+    apt:
+       name: "*"
+       state: latest
+       update_cache: yes
+       force_apt_get: yes
+    when: ansible_distribuition == "Ubuntu" or ansible_distribuition == "Debian"
+  - name: Atualizar todos Pacotes Centos e RedHat Instalados
+    yum:
+      name: '*'
+      state: latest
+    when: ansible_distribuition == "CentOS"
+

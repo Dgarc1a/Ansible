@@ -1,0 +1,15 @@
+[LINUX]	                 	
+suricata   ansible_host=10.10.203.188	
+srv-zabbix ansible_host=10.10.203.181	
+wazuh      ansible_host=10.10.203.183		
+
+[WINDOWS]
+HMIAM-FS01 ansible_host=10.10.203.7	
+HMIAM-DC01 ansible_host=10.10.203.5	
+HMIAM-DC02 ansible_host=10.10.203.6	
+
+
+
+
+
+

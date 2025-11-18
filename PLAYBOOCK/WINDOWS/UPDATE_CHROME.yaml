@@ -1,0 +1,23 @@
+---
+- name: PLAYBOOCK THE ATUALIZAÇÃO DO NAVEGADOR GOOGLE CHROME
+  hosts: noc
+  gether_facts: false
+  tasks:
+    - name: INICIANDO A INSTALAÇÃO DO CHOCOLATEY
+      win_chocolatey:
+        name:
+          - chocolatey
+          - chocolatey-core.extension
+        state: present
+
+    - name: INICIANDO O PROCESSO DE ATUALIZACAO | TERMINAR O PROCESSO DO GOOGLE CHROME
+      win_shell:
+        Stop-Process -Name "chrome" -Force
+      ignore_errors: yes
+
+    - name: INICIANDO ATUALIZACAO DO GOOGLE CHROME
+      win_chocolatey:
+        name:
+          - googlechrome
+        state: latest
+        ignore_checksums: yes

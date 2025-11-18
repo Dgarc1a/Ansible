@@ -1,0 +1,56 @@
+---
+- name: Remover ambiente gráfico e pacotes relacionados
+  hosts: suricata
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Remover pacotes do XFCE e LightDM
+      apt:
+        name:
+          - xubuntu-desktop
+          - xfce4
+          - "xfce4-*"
+          - lightdm
+        state: absent
+        purge: yes
+      ignore_errors: yes  # Evita falhar se pacote não existir
+
+    - name: Remover pacotes do Xorg e X11
+      apt:
+        name:
+          - "xserver-xorg*"
+          - "xorg*"
+          - x11-utils
+          - x11-xserver-utils
+          - xinit
+          - xinput
+          - x11-common
+          - xwayland
+        state: absent
+        purge: yes
+      ignore_errors: yes
+
+    - name: Autoremove e purge de dependências não usadas
+      apt:
+        autoremove: yes
+        purge: yes
+
+    - name: Limpar cache do apt
+      apt:
+        autoclean: yes
+
+    - name: Verificar se reboot é necessário
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Reboot do servidor (se necessário)
+      reboot:
+        msg: "Reiniciando após remoção de pacotes gráficos"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 5
+        post_reboot_delay: 30
+      when: reboot_required.stat.exists
+

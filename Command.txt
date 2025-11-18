@@ -1,0 +1,25 @@
+#LINUX
+ansible servidores -i inventory.ini -b -m apt -a "autoremove=yes purge=yes"
+ansible -i inventory/debian.ini debian -b -m apt -a "update_cache=yes"
+ansible -i inventory/debian.ini debian -b -k -K -u hservice -m apt -a "upgrade=dist force=yes update_cache=yes"
+ansible -i inventory.ini servidores -b -m apt -a "name=elasticsearch state=absent purge=yes"
+ansible -i inventario.txt all -u dgarcia -k -b -m apt -a "name=nano"
+
+#WINDOWS
+#instalação de programa
+ansible windows -m win_chocolatey -a "name=firefox state=present"
+ansible windows -m win_chocolatey -a "name=firefox state=absent"
+
+#PLAYBOOK
+#Run Playbook
+ansible-playbook -i inventory.ini playbooks/list_updates.yml
+ansible-playbook -i inventory.ini playbooks/install_updates_msrt.yml
+ansible-playbook -i inventory.ini playbooks/install_updates_sec.yml -v
+ansible -i inventario.txt all -u dgarcia -k -b -m user -a "name=asafe" 
+ansible -i inventario.txt <ip do host> -u dgarcia -k -b -m user -a "name=asafe" 
+
+#CRIAR USER para todos os pc da lista de inventario
+ansible -i inventory.ini all -u dgarcia -k -b -m user -a "name=asafe"
+
+#CRIAR USER para UM HOST ESPECIFICO 
+ansible -i inventario.ini SURICATA -u dgarcia -k -b -m user -a "name=asafe"

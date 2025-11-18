@@ -1,0 +1,43 @@
+---
+- name: Install and configure Fail2ban on Ubuntu/Debian
+  hosts: debian
+  become: true
+
+  tasks:
+    - name: Ensure apt cache is updated
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install fail2ban package
+      apt:
+        name: fail2ban
+        state: present
+
+    - name: Ensure fail2ban service is enabled and started
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+    - name: Deploy basic fail2ban jail.local
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [DEFAULT]
+          bantime  = 10m
+          findtime = 10m
+          maxretry = 5
+          backend = systemd
+          ignoreip = 127.0.0.1/8
+
+          [sshd]
+          enabled = true
+      notify: Restart fail2ban
+
+  handlers:
+    - name: Restart fail2ban
+      service:
+        name: fail2ban
+        state: restarted
+

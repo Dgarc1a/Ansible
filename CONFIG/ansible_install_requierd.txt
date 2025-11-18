@@ -1,0 +1,8 @@
+#linux
+sudo apt install sshpass
+
+
+#windows
+pip install "pywinrm>=0.3.3"
+pip install "pywinrm[credssp]"
+
