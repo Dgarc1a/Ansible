@@ -1,0 +1,74 @@
+- name: Apply Essential Windows Security Hardening
+  hosts: windows_server
+  gather_facts: false # Não é sempre necessário para hardening
+  tasks:
+    ## 1. DESATIVAR SMBv1
+    - name: Ensure SMBv1 feature is disabled
+      ansible.windows.win_feature:
+        name: FS-SMB1
+        state: absent
+        restart: true # Garante a remoção, pode exigir reboot
+
+    ## 2. CONFIGURAR FIREWALL (Exemplo: Bloquear tráfego de saída não essencial)
+    - name: Block all non-essential outbound traffic (Example: Outbound rule)
+      ansible.windows.win_firewall_rule:
+        name: Block All Outbound Non-Essential
+        direction: Outbound
+        action: Block
+        protocol: Any
+        localport: Any
+        remoteport: Any
+        state: present
+        # É crucial adicionar regras para permitir o tráfego essencial (ex: 80, 443, DNS, Domínio, etc.)
+        # Este é apenas um exemplo de hardening, deve ser ajustado para seu ambiente!
+
+    ## 3. CONFIGURAR WINRM SEGURO (HTTPS/Certificado)
+    - name: Ensure WinRM is listening only on HTTPS (Port 5986)
+      ansible.windows.win_shell: |
+        # Verifica e cria listener HTTPS se não existir (requer certificado configurado)
+        $certThumbprint = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -like 'CN=*.yourdomain.com' } | Select-Object -ExpandProperty Thumbprint -First 1
+        if ($certThumbprint) {
+            winrm create winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="[FQDN_DO_SERVIDOR]"; CertificateThumbprint=$certThumbprint}
+        } else {
+            Write-Error "Certificate not found. WinRM HTTPS listener not created."
+        }
+      register: winrm_secure_config
+      failed_when: winrm_secure_config.stderr and "Certificate not found" not in winrm_secure_config.stderr
+      changed_when: winrm_secure_config.stdout | length > 0
+
+    ## 4. POLÍTICA DE SENHA (Exemplo: Comprimento Mínimo)
+    - name: Set Minimum Password Length to 14 characters
+      community.windows.win_security_policy:
+        section: System Access
+        key: MinimumPasswordLength
+        value: 14
+
+    ## 5. DESATIVAR LLMNR E NETBIOS (Via Registry)
+    - name: Disable Link-Local Multicast Name Resolution (LLMNR)
+      ansible.windows.win_regedit:
+        path: HKLM:\Software\Policies\Microsoft\Windows\System
+        name: EnableLlmr
+        data: 0
+        type: dword
+        state: present
+
+    - name: Disable NetBIOS over TCP/IP (Setting value 2 on Interfaces)
+      # Isso exige que você itere sobre os adaptadores de rede seletivamente, 
+      # mas o exemplo abaixo configura o padrão de todos os adaptadores.
+      # Para um hardening mais preciso, o ideal é usar o módulo `win_netadapter`
+      # para obter as interfaces e desativar o NetBIOS (NetbiosOptions=2)
+      ansible.windows.win_regedit:
+        path: HKLM:\System\CurrentControlSet\services\NetBT\Parameters
+        name: NetbiosOptions
+        data: 2 
+        type: dword
+        state: present
+
+    ## 6. ATIVAR SECURE BOOT CHECK (Configuração do Registro)
+    - name: Set SecureBootRequired to 1 (Requires manual configuration in BIOS/UEFI as well)
+      ansible.windows.win_regedit:
+        path: HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot
+        name: SecureBootRequired
+        data: 1
+        type: dword
+        state: present

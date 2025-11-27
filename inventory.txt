@@ -1,4 +1,4 @@
-[LINUX]	                 	
+[debian]	                 	
 suricata   ansible_host=10.10.203.188	
 srv-zabbix ansible_host=10.10.203.181	
 wazuh      ansible_host=10.10.203.183		

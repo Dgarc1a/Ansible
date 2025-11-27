@@ -1,0 +1,52 @@
+---
+# =========================================
+# CIS Benchmark Compliance Check
+# Autor: m0m0n0suk3
+# Descrição:
+#   - Verifica conformidade com CIS Benchmark
+#   - Suporta Windows e Linux
+#   - Gera relatório local e remoto
+# =========================================
+
+- name: CIS Compliance Check - All Systems
+  hosts: all
+  gather_facts: yes
+  vars:
+    report_dir: "/tmp/cis_reports"
+  tasks:
+
+    - name: Criar diretório local de relatórios
+      delegate_to: localhost
+      file:
+        path: "{{ report_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Incluir checks para Linux
+      include_tasks: tasks/cis_linux_checks.yml
+      when: ansible_os_family in ['Debian', 'RedHat']
+
+    - name: Incluir checks para Windows
+      include_tasks: tasks/cis_windows_checks.yml
+      when: ansible_os_family == 'Windows'
+
+    - name: Gerar relatório consolidado
+      delegate_to: localhost
+      copy:
+        dest: "{{ report_dir }}/cis_report_{{ inventory_hostname }}.txt"
+        content: |
+          ===============================
+          CIS BENCHMARK REPORT
+          Host: {{ inventory_hostname }}
+          IP: {{ ansible_default_ipv4.address | default('N/A') }}
+          Sistema: {{ ansible_os_family }}
+          Data: {{ ansible_date_time.iso8601 }}
+
+          Resultados:
+          {% for item in cis_results %}
+          - {{ item.id }}: {{ item.description }} -> {{ item.status }}
+          {% endfor %}
+
+          ===============================
+      when: cis_results is defined
+

@@ -1,0 +1,57 @@
+---
+- name: 🔒 CIS Hardening Compliance Check and Enforcement
+  hosts: linux_servers
+  become: true
+  vars:
+    # --- Variáveis de Configuração CIS ---
+    # Defina o nível de compliance CIS desejado.
+    # Exemplo: '1', '2' (Lembrando que o Nível 2 é mais restritivo e pode quebrar aplicações)
+    cis_level: 1
+
+    # Defina o perfil do SO (adapte o nome da variável conforme a role usada)
+    cis_profile: "server" 
+
+    # Se a sua role suportar, use 'True' para apenas verificar (check mode)
+    # ou 'False' para aplicar as correções.
+    # cis_check_only: False 
+    
+    # Lista de regras para excluir, se necessário (exemplo)
+    # cis_skip_list: 
+    #   - rule_1_1_22 # Exclui a regra específica 
+  
+  pre_tasks:
+    - name: ⚙️ Check OS Family for Role Compatibility
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family in ['RedHat', 'Debian']
+        fail_msg: "This role only supports RedHat (RHEL/CentOS) or Debian-based systems."
+        
+  roles:
+    # Nota: Substitua 'ansible-lockdown.cis-hardening' pela role específica que você instalou.
+    - role: ansible-lockdown.cis-hardening
+      vars:
+        # Passa as variáveis definidas acima para a role
+        level: "{{ cis_level }}"
+        profile: "{{ cis_profile }}"
+        # check_only: "{{ cis_check_only }}"
+
+  post_tasks:
+    - name: ⚠️ Inform user if a reboot is needed
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+      when: ansible_os_family == 'Debian'
+
+    - name: ⚠️ Inform user if a reboot is needed (RedHat-based)
+      ansible.builtin.command: needs-restarting -r
+      register: needs_restarting_rhel
+      ignore_errors: true # O comando falha se não precisar de reboot
+      changed_when: false
+      when: ansible_os_family == 'RedHat'
+
+    - name: 🚨 REBOOT REQUIRED: Please schedule a maintenance window
+      ansible.builtin.debug:
+        msg: "The system has installed packages requiring a reboot. Please schedule a controlled reboot immediately."
+      when: 
+        - (ansible_os_family == 'Debian' and reboot_required.stat.exists) 
+        - (ansible_os_family == 'RedHat' and needs_restarting_rhel.rc == 1)

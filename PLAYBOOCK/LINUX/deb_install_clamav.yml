@@ -1,0 +1,37 @@
+---
+- name: Instalar e configurar ClamAV no Ubuntu
+  hosts: debian
+  become: yes
+  vars:
+    clamav_daemon: true
+  tasks:
+
+    - name: Atualizar cache dos pacotes
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Instalar ClamAV com daemon
+      ansible.builtin.apt:
+        name:
+          - clamav
+          - clamav-daemon
+        state: present
+      when: clamav_daemon
+
+    - name: Atualizar base de dados de vírus (freshclam)
+      ansible.builtin.command: freshclam
+      notify: Reiniciar ClamAV daemon
+      when: clamav_daemon
+
+    - name: Habilitar e iniciar o serviço clamav-daemon
+      ansible.builtin.service:
+        name: clamav-daemon
+        enabled: yes
+        state: started
+      when: clamav_daemon
+
+  handlers:
+    - name: Reiniciar ClamAV daemon
+      ansible.builtin.service:
+        name: clamav-daemon
+        state: restarted

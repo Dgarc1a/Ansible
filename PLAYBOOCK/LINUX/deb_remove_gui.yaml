@@ -1,6 +1,6 @@
 ---
 - name: Remover ambiente gráfico e pacotes relacionados
-  hosts: suricata
+  hosts: debian
   become: yes
   gather_facts: yes
 

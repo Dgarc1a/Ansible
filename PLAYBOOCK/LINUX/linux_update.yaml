@@ -1,4 +1,4 @@
-- hosts: linux_server
+- hosts: debian
   become: true
   tasks:
   - name: Atualizar todos Pacotes Ubunto e Debian Instalados 

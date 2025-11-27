@@ -1,0 +1,28 @@
+---
+- name: SECURE UPGRADE ON DEBIAN SERVERS
+  hosts: debian
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: REFRESH APT CACHE FOR 1 HOUR
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: SAFELY UPGRADE PACKAGES WITHOUT REMOVING ANYTHING
+      apt:
+        upgrade: yes
+        autoremove: no
+        autoclean: yes
+
+    - name: CHECK IF REBOOT IS NECESSARY
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: INFORM THAT  REBOOT IS REQUIRED
+      debug:
+        msg: "Reboot if required after update!"
+      when: reboot_required.stat.exists
+

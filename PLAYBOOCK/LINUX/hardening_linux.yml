@@ -1,0 +1,33 @@
+- hosts: debian
+  become: true
+  tasks:
+    - name: Install fail2ban
+      ansible.builtin.apt:
+        name: fail2ban
+        state: present
+        update_cache: yes
+
+    - name: Configure Secure SSH Settings
+      block:
+        - name: Disable root SSH login
+          ansible.builtin.lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^(#\s*)?PermitRootLogin\s+'
+            line: "PermitRootLogin no"
+            state: present
+          register: ssh_root_login
+
+        - name: Disable SSH password authentication (Use Key-based login)
+          ansible.builtin.lineinfile:
+            path: /etc/ssh/sshd_config
+            regexp: '^(#\s*)?PasswordAuthentication\s+'
+            line: "PasswordAuthentication no"
+            state: present
+          register: ssh_password_auth
+
+        - name: Restart SSH service if configuration changed
+          ansible.builtin.service:
+            name: ssh
+            state: restarted
+          when: ssh_root_login.changed or ssh_password_auth.changed
+
