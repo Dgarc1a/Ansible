@@ -1,0 +1,9 @@
+# requirements - Coleções Essenciais para Windows e Linux
+
+collections:
+  # Coleções Essenciais para Windows
+  - name: community.windows   # Contém win_ad_user, win_regedit, win_firewall, etc.
+  
+  # Coleções Essenciais para Linux (Sysadmin)
+  - name: community.general   # Contém módulos genéricos úteis (iptables, sysctl, etc.)
+  - name: ansible.posix       # Contém módulos para gerenciamento de POSIX/Linux (selinux, acl, firewalld, etc.)

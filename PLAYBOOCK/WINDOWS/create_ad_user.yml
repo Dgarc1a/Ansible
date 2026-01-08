@@ -1,0 +1,50 @@
+---
+- name: Create New AD User
+  hosts: AD
+  gather_facts: no
+
+  # No AWX, você deve configurar o Survey para estas variáveis:
+  # target_user, new_password, first_name, last_name, ou_path
+  vars_prompt:
+    - name: target_user
+      prompt: "Digite o sAMAccountName (ex: d.garcia)"
+      private: no
+
+    - name: first_name
+      prompt: "Primeiro Nome"
+      private: no
+
+    - name: last_name
+      prompt: "Sobrenome"
+      private: no
+
+    - name: new_password
+      prompt: "Digite a senha inicial"
+      private: yes
+
+    - name: ou_path
+      prompt: "Caminho da OU (ex: OU=Suporte,DC=empresa,DC=com)"
+      private: no
+
+  tasks:
+    - name: Criar o novo usuário no AD
+      microsoft.ad.user:
+        identity: "{{ target_user }}"
+        state: present
+        # Parâmetros obrigatórios para novos usuários:
+        name: "{{ first_name }} {{ last_name }}"
+        firstname: "{{ first_name }}"
+        surname: "{{ last_name }}"
+        password: "{{ new_password }}"
+        path: "{{ ou_path }}"
+        
+        enabled: yes
+        password_expired: yes  # Força a troca no primeiro logon
+        groups: 
+          - Domain Users
+      register: user_creation
+
+    - name: Mostrar resultado
+      debug:
+        msg: "Usuário '{{ target_user }}' criado com sucesso na OU '{{ ou_path }}'."
+      when: user_creation.changed
