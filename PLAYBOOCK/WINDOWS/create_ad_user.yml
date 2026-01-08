@@ -1,50 +1,42 @@
 ---
 - name: Create New AD User
-  hosts: AD
+  hosts: HMIAMDC02
   gather_facts: no
 
-  # No AWX, você deve configurar o Survey para estas variáveis:
-  # target_user, new_password, first_name, last_name, ou_path
+  # O prompt só aparece se você rodar via terminal. 
+  # No AWX, o Survey preenche essas variáveis automaticamente.
   vars_prompt:
     - name: target_user
-      prompt: "Digite o sAMAccountName (ex: d.garcia)"
+      prompt: "Username do logon"
       private: no
-
     - name: first_name
-      prompt: "Primeiro Nome"
+      prompt: "Primeiro nome"
       private: no
-
     - name: last_name
       prompt: "Sobrenome"
       private: no
-
     - name: new_password
-      prompt: "Digite a senha inicial"
+      prompt: "Senha inicial"
       private: yes
-
     - name: ou_path
-      prompt: "Caminho da OU (ex: OU=Suporte,DC=empresa,DC=com)"
+      prompt: "Caminho da OU"
       private: no
 
+  vars:
+    domain_name: "hmic.ao" # Ajuste para o seu domínio
+
   tasks:
-    - name: Criar o novo usuário no AD
+    - name: Criar o novo usuário no AD com todos os campos
       microsoft.ad.user:
         identity: "{{ target_user }}"
         state: present
-        # Parâmetros obrigatórios para novos usuários:
         name: "{{ first_name }} {{ last_name }}"
         firstname: "{{ first_name }}"
         surname: "{{ last_name }}"
-        password: "{{ new_password }}"
+        display_name: "{{ first_name }} {{ last_name }}"
+        upn: "{{ target_user }}@{{ domain_name }}"
+        sam_account_name: "{{ target_user }}"
         path: "{{ ou_path }}"
-        
+        password: "{{ new_password }}"
         enabled: yes
-        password_expired: yes  # Força a troca no primeiro logon
-        groups: 
-          - Domain Users
-      register: user_creation
-
-    - name: Mostrar resultado
-      debug:
-        msg: "Usuário '{{ target_user }}' criado com sucesso na OU '{{ ou_path }}'."
-      when: user_creation.changed
+        password_expired: yes
