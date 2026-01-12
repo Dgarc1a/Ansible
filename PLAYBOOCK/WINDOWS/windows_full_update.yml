@@ -1,0 +1,27 @@
+---
+- name: Full Windows Update with Auto Reboot
+  hosts: windows_servers
+  gather_facts: no
+
+  tasks:
+    - name: Buscar e instalar todas as atualizações disponíveis
+      ansible.windows.win_updates:
+        # '*' busca todas as categorias (Segurança, Críticas, Drivers, Tools, etc.)
+        category_names: '*'
+        state: installed
+        
+        # O módulo gerencia o reboot sozinho se for necessário
+        reboot: yes
+        
+        # Tempo máximo de espera para o servidor voltar (em segundos)
+        # Updates grandes podem demorar, 3600s (1h) é uma margem segura
+        reboot_timeout: 3600
+        
+      register: update_result
+
+    - name: Relatório de Atualização
+      debug:
+        msg: 
+          - "Status: {{ 'Atualizações instaladas e reboot realizado' if update_result.reboot_required else 'Sistema já estava atualizado ou não precisou de reboot' }}"
+          - "Updates instalados: {{ update_result.found_update_count }}"
+          - "Lista de IDs: {{ update_result.updates | json_query('*.kb') | default('Nenhum') }}"
