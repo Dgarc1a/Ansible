@@ -1,0 +1,35 @@
+---
+- name: Enable and Unlock AD User
+  hosts: AD
+  gather_facts: no
+
+  vars_prompt:
+    - name: target_user
+      prompt: "Digite o login (sAMAccountName) para habilitar/desbloquear"
+      private: no
+
+  tasks:
+    - name: Buscar usuário no AD
+      microsoft.ad.object_info:
+        filter: "sAMAccountName -eq '{{ target_user }}'"
+      register: ad_user_info
+
+    - name: Validar existência de usuario
+      fail:
+        msg: "ERRO: O usuário '{{ target_user }}' não foi encontrado no AD."
+      when: ad_user_info.objects | length == 0
+
+    - name: Habilitar e Desbloquear a conta
+      microsoft.ad.user:
+        identity: "{{ ad_user_info.objects[0].DistinguishedName }}"
+        state: present
+        enabled: yes
+        account_locked: no
+      register: action_result
+
+    - name: 4. Resultado Final
+      debug:
+        msg: 
+          - "Usuário: {{ target_user }}"
+          - "Status: A conta foi habilitada e/ou desbloqueada com sucesso!"
+      when: action_result.changed or not action_result.failed
