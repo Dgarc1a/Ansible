@@ -1,0 +1,46 @@
+---
+- name: Scan Windows Updates
+  hosts: direcao_tecnica
+  gather_facts: no
+
+  tasks:
+    - name: 1. Procurar todas as atualizações disponiveis
+      ansible.windows.win_updates:
+        state: searched
+        category_names: '*'
+      register: update_scan
+
+    - name: 2. Categorizar atualizações
+      set_fact:
+        # Filtro para Segurança e Críticos
+        security_updates: >-
+          {% set found = [] %}
+          {% for u in update_scan.updates.values() %}
+            {% if 'Security Updates' in u.categories or 'Critical Updates' in u.categories or 'Update Rollups' in u.categories %}
+              {% set _ = found.append(u.title) %}
+            {% endif %}
+          {% endfor %}
+          {{ found }}
+
+        # Filtro para Drivers
+        driver_updates: >-
+          {% set found = [] %}
+          {% for u in update_scan.updates.values() %}
+            {% if 'Drivers' in u.categories %}
+              {% set _ = found.append(u.title) %}
+            {% endif %}
+          {% endfor %}
+          {{ found }}
+
+    - name: 3. EXIBIR RELATÓRIO DE AUDITORIA
+      debug:
+        msg: 
+          - "====================================================="
+          - "RELATÓRIO: {{ inventory_hostname }}"
+          - "====================================================="
+          - "🛡️ SEGURANÇA/CRÍTICOS:"
+          - "{{ security_updates if security_updates | length > 0 else 'Nenhuma encontrada' }}"
+          - ""
+          - "⚙️ DRIVERS:"
+          - "{{ driver_updates if driver_updates | length > 0 else 'Nenhum encontrado' }}"
+          - "====================================================="
