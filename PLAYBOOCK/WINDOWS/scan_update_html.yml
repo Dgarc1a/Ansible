@@ -1,0 +1,118 @@
+---
+- name: 🛡️ Auditoria de Updates Windows 
+  hosts: hmiamserver
+  gather_facts: no
+  tasks:
+    - name: 0. Testar Conectividade
+      ansible.windows.win_ping:
+      register: check_online
+      ignore_unreachable: yes
+
+    - name: 1. Scan Completo de Atualizações
+      ansible.windows.win_updates:
+        state: searched
+        category_names: 
+          - Security Updates
+          - Critical Updates
+          - Definition Updates
+          - Drivers
+      register: update_scan
+      when: (check_online.ping is defined) and (check_online.ping == "pong")
+      ignore_errors: yes
+
+    - name: 2. Processar Dados e Listas de KBs
+      set_fact:
+        host_status: "{{ 'Online' if (check_online.ping is defined and check_online.ping == 'pong') else 'Offline' }}"
+        security_list: >-
+          {%- set updates = [] -%}
+          {%- if update_scan is defined and update_scan.updates is defined -%}
+            {%- for u in update_scan.updates.values() -%}
+              {%- if 'Security Updates' in u.categories or 'Critical Updates' in u.categories or 'Definition Updates' in u.categories -%}
+                {%- set _ = updates.append(u.title) -%}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endif -%}
+          {{ updates }}
+        driver_list: >-
+          {%- set drivers = [] -%}
+          {%- if update_scan is defined and update_scan.updates is defined -%}
+            {%- for u in update_scan.updates.values() -%}
+              {%- if 'Drivers' in u.categories -%}
+                {%- set _ = drivers.append(u.title) -%}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endif -%}
+          {{ drivers }}
+
+- name: 🌐 Publicar no Portal Nginx
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  vars:
+    nginx_host_ip: "10.10.203.182"
+    report_path: "/var/www/html/awx/relatorioUpdate/index.html"
+
+  tasks:
+    - name: Gerar HTML Dinâmico
+      ansible.builtin.copy:
+        dest: "{{ report_path }}"
+        mode: '0755'
+        content: |
+          <!DOCTYPE html>
+          <html lang="pt-br">
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: sans-serif; background: #f4f7f6; padding: 20px; }
+              .container { max-width: 1100px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th { background: #0056b3; color: white; padding: 12px; text-align: left; }
+              td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+              .badge { padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8em; }
+              .online { background: #d4edda; color: #155724; }
+              .offline { background: #f8d7da; color: #721c24; }
+              ul { margin: 0; padding-left: 15px; font-size: 0.85em; color: #555; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h2>📊 Relatório de Conformidade Windows Update </h2>
+              <p>Gerado em:{{ ansible_date_time.date }} às {{ ansible_date_time.time }}</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Estação</th>
+                    <th>Status</th>
+                    <th>Segurança</th>
+                    <th>Drivers</th>
+                    <th>Detalhes KBs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for host in groups['all'] if host != 'localhost' %}
+                  {% set status = hostvars[host]['host_status'] | default('Offline') %}
+                  {% set sec_list = hostvars[host]['security_list'] | default([]) %}
+                  {% set drv_list = hostvars[host]['driver_list'] | default([]) %}
+                  <tr>
+                    <td><strong>{{ host }}</strong></td>
+                    <td><span class="badge {{ 'online' if status == 'Online' else 'offline' }}">{{ status }}</span></td>
+                    <td>{{ sec_list | length }}</td>
+                    <td>{{ drv_list | length }}</td>
+                    <td>
+                      {% if sec_list | length > 0 %}
+                        <strong>Segurança:</strong><ul>{% for kb in sec_list %}<li>{{ kb }}</li>{% endfor %}</ul>
+                      {% endif %}
+                      {% if drv_list | length > 0 %}
+                        <strong>Drivers:</strong><ul>{% for drv in drv_list %}<li>{{ drv }}</li>{% endfor %}</ul>
+                      {% endif %}
+                      {% if status == 'Online' and sec_list | length == 0 and drv_list | length == 0 %}
+                        <span style="color: green;">✅ Atualizado</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </body>
+      delegate_to: "{{ nginx_host_ip }}"
